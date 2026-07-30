@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diamond Death</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  :root{
+    --bg:#1E2A33;
+    --panel:#39505F;
+    --panel-2:#2c3f4b;
+    --border:#4d6779;
+    --text:#ffffff;
+    --text-dim:#b9c6ce;
+    --gold:#f5c542;
+    --green:#4caf50;
+    --green-dark:#387c3b;
+    --red:#e15554;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:20px 14px 40px;
+  }
+  .wrap{max-width:1100px;margin:auto;}
+
+  header{text-align:center; margin-bottom:20px;}
+  header img.logo{height:80px; margin-bottom:6px;}
+  header h1{font-size:20px; margin:4px 0;}
+  header p{color:var(--text-dim); font-size:13px; margin:0;}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:16px; margin-bottom:16px;
+  }
+  .panel-head{
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:12px;
+  }
+  .panel-head h2{font-size:15px; margin:0;}
+  .panel h2.plain{font-size:15px; margin:0 0 12px; border-bottom:1px solid var(--border); padding-bottom:8px;}
+
+  /* Wallet, en haut a droite du panneau "Partie jouable" */
+  .wallet-inline{ display:flex; align-items:center; gap:6px; }
+  .wallet-inline img{width:22px;height:22px;}
+  .wallet-inline input{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:5px;
+    color:var(--gold); font-weight:bold; font-size:16px; padding:5px 8px; width:130px;
+    text-align:right; font-family:inherit;
+  }
+
+  /* Formule en encart blanc, style manuel scolaire */
+  .math-box{
+    background:#ffffff; color:#111111; border-radius:6px; padding:16px 18px;
+    font-family: "Cambria Math", Cambria, Georgia, "Times New Roman", serif;
+    font-size:18px; text-align:center; line-height:1.7;
+  }
+  .math-box .small{font-size:12.5px; color:#555555; font-family:Verdana, sans-serif; margin-top:6px;}
+
+  label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;}
+  input[type="number"]{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:5px;
+    color:var(--text); padding:8px; font-size:14px; font-family:inherit;
+  }
+  .field{margin-bottom:10px;}
+  .field-row{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px;}
+  .field-row .field{flex:0 0 220px; margin-bottom:0;}
+
+  .btn{
+    display:inline-block; border:none; border-radius:6px; padding:10px 14px; font-weight:bold;
+    font-size:13px; cursor:pointer; color:#fff; font-family:inherit;
+  }
+  .btn-green{background:var(--green); border-bottom:3px solid var(--green-dark);}
+  .btn-green:disabled{background:#4a5a60; border-bottom-color:#3a464b; cursor:not-allowed; color:var(--text-dim);}
+  .btn-gold{background:var(--gold); color:#3a2c00; border-bottom:3px solid #b98f1e;}
+  .btn-gold:disabled{background:#4a5a60; border-bottom-color:#3a464b; cursor:not-allowed; color:var(--text-dim);}
+  .btn-flat{background:var(--panel-2); border:1px solid var(--border); border-bottom:3px solid var(--border); color:var(--text);}
+
+  .quick{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 12px;}
+  .quick button{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:5px; padding:4px 8px; font-size:11px; cursor:pointer;
+  }
+
+  .sim-layout{display:flex; gap:18px; flex-wrap:wrap;}
+  .sim-controls{flex:0 0 260px; display:flex; flex-direction:column; gap:8px;}
+  .grid5{
+    display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px;
+    width:100%; max-width:400px; margin:0 auto;
+  }
+  .cell{
+    width:100%; aspect-ratio:1; min-width:0; background:var(--panel-2); border:1px solid var(--border);
+    border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .cell img{max-width:70%; max-height:70%; width:auto; height:auto;}
+  .cell.disabled{cursor:default;}
+  .cell.ghost{opacity:0.35;}
+  .cell.hit{border-color:var(--red); background:#4a2626;}
+
+  .status{background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:10px; font-size:13px;}
+  .status .row{display:flex; justify-content:space-between; padding:3px 0;}
+  .status .row span:last-child{font-weight:bold;}
+  .status .msg{margin-top:6px; text-align:center; font-weight:bold; font-size:12.5px; min-height:16px;}
+  .msg-win{color:#8fd98f;}
+  .msg-lose{color:#ff9d9d;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--text-dim); font-size:11px; text-transform:uppercase; padding:6px; border-bottom:1px solid var(--border);}
+  td{padding:8px 6px; border-bottom:1px solid var(--border);}
+  .risk-1{color:#8fd98f;} .risk-2{color:var(--gold);} .risk-3{color:#ff9d9d;}
+  .gold{color:var(--gold); font-weight:bold;}
+
+  .stats-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-top:12px;}
+  .stat-card{background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:10px; text-align:center;}
+  .stat-card .v{font-size:17px; font-weight:bold; color:var(--gold);}
+  .stat-card .l{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .note{font-size:12px; color:var(--text-dim); margin-top:10px; line-height:1.6;}
+  #chart, #batchChart{width:100%; height:420px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <img class="logo" src="https://www.habboz.ws/assets/img/HabbozLogo2024_Space.gif" alt="Habboz">
+    <h1>Diamond Death</h1>
+  </header>
+
+  <div class="panel">
+    <h2 class="plain">Formule</h2>
+    <div class="math-box" id="mathBox"></div>
+    <div class="field-row">
+      <div class="field">
+        <label>RTP — Return To Player (%)</label>
+        <input type="number" id="rtpInput" value="99" min="1" max="100" step="0.1" oninput="onFormulaChange()">
+      </div>
+      <div class="field">
+        <label>Plafond de multiplicateur (sécurité)</label>
+        <input type="number" id="capInput" value="6000000" min="10" step="10" oninput="onFormulaChange()">
+      </div>
+    </div>
+    <div class="note">Info : c'est la formule utilisée par Stake, BC.Game et Shuffle, avec un RTP fixe de 99% (1% de house edge), quel que soit le nombre de mines.</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Partie jouable</h2>
+      <div class="wallet-inline">
+        <img src="https://www.habboz.ws/assets/img/diamonds.png" alt="diamants">
+        <input type="number" id="walletInput" value="1000000" step="1000" oninput="onWalletInputChange()">
+      </div>
+    </div>
+    <div class="sim-layout">
+      <div class="sim-controls">
+        <div class="field">
+          <label>Mise (diamants)</label>
+          <input type="number" id="simMise" min="100" step="100" value="1000">
+          <div class="quick">
+            <button onclick="setVal('simMise',1000)">1 000</button>
+            <button onclick="setVal('simMise',10000)">10 000</button>
+            <button onclick="setVal('simMise',50000)">50 000</button>
+            <button onclick="setVal('simMise',250000)">250 000</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Nombre de mines (1-24)</label>
+          <input type="number" id="simMines" min="1" max="24" step="1" value="3">
+        </div>
+        <button class="btn btn-green" id="newGameBtn" onclick="newGame()">Nouvelle partie</button>
+        <button class="btn btn-gold" id="cashOutBtn" onclick="cashOut()" disabled>Encaisser</button>
+        <div class="status">
+          <div class="row"><span>Cases sûres</span><span id="statCases">0 / 22</span></div>
+          <div class="row"><span>Multiplicateur</span><span id="statMult">×1.00</span></div>
+          <div class="row"><span>Gain actuel</span><span id="statGain">0</span></div>
+          <div class="row"><span>Bénéfice</span><span id="statProfit">0</span></div>
+          <div class="row"><span>+ au prochain clic</span><span id="statNext" style="color:var(--gold)">—</span></div>
+          <div class="msg" id="statMsg">Configure ta mise et lance une partie</div>
+        </div>
+      </div>
+      <div class="grid5" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 class="plain">Simulation sur plusieurs parties</h2>
+    <div class="sim-layout">
+      <div class="sim-controls">
+        <div class="field">
+          <label>Mise par partie</label>
+          <input type="number" id="batchMise" min="100" step="100" value="1000" oninput="updateBatchPreview()">
+        </div>
+        <div class="field">
+          <label>Nombre de mines : <span id="batchMinesValue">3</span></label>
+          <input type="range" id="batchMines" min="1" max="24" step="1" value="3" oninput="onBatchMinesChange()">
+        </div>
+        <div class="field">
+          <label>Cases à cliquer avant de cashout : <span id="batchTargetValue">5</span></label>
+          <input type="range" id="batchTarget" min="1" max="24" step="1" value="5" oninput="onBatchTargetChange()">
+        </div>
+        <div class="status" id="batchPreview">
+          <div class="row"><span>Multiplicateur au cashout</span><span id="prevMult">×1.00</span></div>
+          <div class="row"><span>Profit potentiel</span><span id="prevProfit">0</span></div>
+          <div class="row"><span>Probabilité de win</span><span id="prevProb">0%</span></div>
+        </div>
+        <button class="btn btn-green" onclick="runBatch(1000)">Simuler 1000 parties</button>
+      </div>
+      <div style="flex:1; min-width:280px;">
+        <div class="stats-grid" id="batchStats"></div>
+        <div id="batchChart"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="panel">
+    <h2 class="plain">Courbe de gains</h2>
+    <div class="field" style="max-width:300px;">
+      <label>Mise d'analyse : <span id="miseValue">250000</span> diamants</label>
+      <input type="range" id="miseSlider" min="1000" max="250000" step="1000" value="250000" oninput="updateAnalysis()">
+    </div>
+    <div id="chart"></div>
+  </div>
+
+  <div class="panel">
+    <h2 class="plain">Détail par nombre de mines</h2>
+    <table>
+      <thead><tr><th>Mines</th><th>Cases max</th><th>Risque</th><th>Multiplicateur</th><th>Gain (full clear)</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+// ================= Wallet =================
+let wallet = 1000000;
+function fmt(n){ return Math.round(n).toLocaleString('fr-FR'); }
+function updateWalletDisplay(){ document.getElementById('walletInput').value = Math.round(wallet); }
+function onWalletInputChange(){
+  wallet = Math.max(0, parseFloat(document.getElementById('walletInput').value) || 0);
+}
+function setVal(id, v){ document.getElementById(id).value = v; }
+
+// ================= Formule (identique a Stake / BC.Game / Shuffle) =================
+// multiplicateur = RTP x produit((25-i)/(25-mines-i)) pour i=0..cases-1
+let rtp = 0.99;        // 99% = reglage officiel Stake (1% house edge)
+let globalCap = 6000000;
+
+function survivalProb(n, c){
+  if (c > 25-n) return 0;
+  let p = 1;
+  for (let k=0; k<c; k++) p *= (25-n-k)/(25-k);
+  return p;
+}
+function calculateMultiplier(n, c){
+  if (c === 0) return 1;
+  const p = survivalProb(n, c);
+  if (p <= 0) return null;
+  return Math.min(rtp / p, globalCap);
+}
+function calculateGain(mise, n, c){
+  const m = calculateMultiplier(n, c);
+  return m === null ? null : mise * m;
+}
+
+function onFormulaChange(){
+  rtp = (parseFloat(document.getElementById('rtpInput').value) || 99) / 100;
+  globalCap = parseFloat(document.getElementById('capInput').value) || 6000000;
+  updateMathBox();
+  updateAnalysis();
+  refreshSimStatus();
+  updateBatchPreview();
+}
+
+function updateMathBox(){
+  document.getElementById('mathBox').innerHTML =
+    `Multiplicateur = ${(rtp*100).toFixed(1)}% &times;
+     <span style="font-size:22px;">&prod;</span><sub>i=0</sub><sup>c&minus;1</sup>
+     &nbsp;( 25 &minus; i ) / ( 25 &minus; mines &minus; i )
+     <div class="small">Gain = Mise &times; Multiplicateur &nbsp;·&nbsp; c = nombre de cases sûres révélées &nbsp;·&nbsp; RTP actuel : ${(rtp*100).toFixed(1)}%</div>`;
+}
+
+// ================= Icones =================
+const SAFE_ICON = '<img src="https://i.ibb.co/VcqZXzGh/t-l-chargement-3.png" alt="diamant">';
+const MINE_ICON = '<img src="https://i.ibb.co/bM4nf3L1/t-l-chargement-4.png" alt="mine">';
+
+// ================= Partie jouable =================
+const TOTAL_CELLS = 25;
+let sim = { mise:1000, mines:3, minePositions:new Set(), cellStates:new Array(25).fill('hidden'), casesDecouvertes:0, active:false, lost:false };
+
+function newGame(){
+  const mise = parseFloat(document.getElementById('simMise').value);
+  let mines = parseInt(document.getElementById('simMines').value, 10);
+  if (!mise || mise <= 0){ alert('Entre une mise valide.'); return; }
+  if (mise > wallet){ alert('Solde insuffisant.'); return; }
+  if (!mines || mines < 1) mines = 1;
+  if (mines > 24) mines = 24;
+  document.getElementById('simMines').value = mines;
+
+  wallet -= mise;
+  updateWalletDisplay();
+
+  sim = { mise, mines, minePositions:new Set(), cellStates:new Array(25).fill('hidden'), casesDecouvertes:0, active:true, lost:false };
+  while (sim.minePositions.size < mines) sim.minePositions.add(Math.floor(Math.random()*25));
+
+  document.getElementById('cashOutBtn').disabled = true;
+  setMsg('Choisis une case pour commencer', '');
+  renderGrid();
+  refreshSimStatus();
+}
+
+function revealCell(idx){
+  if (!sim.active || sim.cellStates[idx] !== 'hidden') return;
+  if (sim.minePositions.has(idx)){
+    sim.cellStates[idx] = 'mine-hit';
+    sim.minePositions.forEach(p => { if (sim.cellStates[p] === 'hidden') sim.cellStates[p] = 'mine'; });
+    for (let i=0;i<25;i++) if (sim.cellStates[i] === 'hidden') sim.cellStates[i] = 'ghost';
+    sim.active = false;
+    sim.lost = true;
+    document.getElementById('cashOutBtn').disabled = true;
+    setMsg('Perdu ! Mine trouvée.', 'msg-lose');
+  } else {
+    sim.cellStates[idx] = 'safe';
+    sim.casesDecouvertes++;
+    const maxSafe = 25 - sim.mines;
+    if (sim.casesDecouvertes >= maxSafe){
+      const gain = calculateGain(sim.mise, sim.mines, sim.casesDecouvertes);
+      wallet += gain; updateWalletDisplay();
+      sim.active = false;
+      document.getElementById('cashOutBtn').disabled = true;
+      sim.minePositions.forEach(p => sim.cellStates[p] = 'mine');
+      setMsg('Toutes les cases sûres trouvées ! +' + fmt(gain), 'msg-win');
+    } else {
+      document.getElementById('cashOutBtn').disabled = false;
+      setMsg('Continue ou encaisse à tout moment', '');
+    }
+  }
+  renderGrid();
+  refreshSimStatus();
+}
+
+function cashOut(){
+  if (!sim.active || sim.casesDecouvertes === 0) return;
+  const gain = calculateGain(sim.mise, sim.mines, sim.casesDecouvertes);
+  wallet += gain; updateWalletDisplay();
+  sim.active = false;
+  document.getElementById('cashOutBtn').disabled = true;
+  sim.minePositions.forEach(p => { if (sim.cellStates[p] === 'hidden') sim.cellStates[p] = 'mine'; });
+  for (let i=0;i<25;i++) if (sim.cellStates[i] === 'hidden') sim.cellStates[i] = 'ghost';
+  setMsg('Encaissé : ' + fmt(gain) + ' diamants', 'msg-win');
+  renderGrid();
+}
+
+function setMsg(text, cls){
+  const el = document.getElementById('statMsg');
+  el.className = 'msg ' + cls;
+  el.innerText = text;
+}
+
+function refreshSimStatus(){
+  const maxSafe = 25 - sim.mines;
+  document.getElementById('statCases').innerText = `${sim.casesDecouvertes} / ${maxSafe}`;
+  let mult = 1, gain = sim.mise;
+  if (sim.lost){
+    mult = 0;
+    gain = 0;
+  } else if (sim.casesDecouvertes > 0){
+    mult = calculateMultiplier(sim.mines, sim.casesDecouvertes);
+    gain = sim.mise * mult;
+  }
+  document.getElementById('statMult').innerText = '×' + mult.toLocaleString('fr-FR', {maximumFractionDigits:2});
+  document.getElementById('statGain').innerText = fmt(gain);
+  const profit = gain - sim.mise;
+  const profitEl = document.getElementById('statProfit');
+  profitEl.innerText = (profit>=0?'+':'') + fmt(profit);
+  profitEl.style.color = profit >= 0 ? '#8fd98f' : '#ff9d9d';
+  const nextEl = document.getElementById('statNext');
+  if (sim.active && sim.casesDecouvertes < maxSafe){
+    const nextGain = calculateGain(sim.mise, sim.mines, sim.casesDecouvertes+1);
+    nextEl.innerText = '+' + fmt(nextGain - gain);
+  } else nextEl.innerText = '—';
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (let i=0;i<25;i++){
+    const div = document.createElement('div');
+    const state = sim.cellStates[i];
+    let cls = 'cell', content = '';
+    if (state === 'hidden'){ if (!sim.active) cls += ' disabled'; }
+    else if (state === 'safe'){ content = SAFE_ICON; cls += ' disabled'; }
+    else if (state === 'mine'){ content = MINE_ICON; cls += ' disabled'; }
+    else if (state === 'mine-hit'){ content = MINE_ICON; cls += ' disabled hit'; }
+    else if (state === 'ghost'){ content = SAFE_ICON; cls += ' disabled ghost'; }
+    div.className = cls;
+    div.innerHTML = content;
+    div.onclick = () => revealCell(i);
+    grid.appendChild(div);
+  }
+}
+
+// ================= Simulation batch (100/1000 parties) =================
+function onBatchMinesChange(){
+  const mines = parseInt(document.getElementById('batchMines').value, 10);
+  document.getElementById('batchMinesValue').innerText = mines;
+  const maxSafe = 25 - mines;
+  const targetInput = document.getElementById('batchTarget');
+  targetInput.max = maxSafe;
+  if (parseInt(targetInput.value, 10) > maxSafe) targetInput.value = maxSafe;
+  document.getElementById('batchTargetValue').innerText = targetInput.value;
+  updateBatchPreview();
+}
+
+function onBatchTargetChange(){
+  document.getElementById('batchTargetValue').innerText = document.getElementById('batchTarget').value;
+  updateBatchPreview();
+}
+
+function updateBatchPreview(){
+  const mise = parseFloat(document.getElementById('batchMise').value) || 0;
+  let mines = parseInt(document.getElementById('batchMines').value, 10) || 1;
+  let target = parseInt(document.getElementById('batchTarget').value, 10) || 1;
+  const maxSafe = 25 - mines;
+  if (target > maxSafe) target = maxSafe;
+  if (target < 1) target = 1;
+  document.getElementById('batchTarget').value = target;
+  document.getElementById('batchTargetValue').innerText = target;
+
+  const p = survivalProb(mines, target);
+  const gain = calculateGain(mise, mines, target);
+  const mult = calculateMultiplier(mines, target);
+  const profit = gain - mise;
+
+  document.getElementById('prevMult').innerText = '×' + mult.toLocaleString('fr-FR', {maximumFractionDigits:2});
+  document.getElementById('prevProfit').innerText = (profit>=0?'+':'') + fmt(profit);
+  document.getElementById('prevProb').innerText = (p*100).toFixed(2) + '%';
+}
+
+function runBatch(nGames){
+  const mise = parseFloat(document.getElementById('batchMise').value) || 1000;
+  let mines = parseInt(document.getElementById('batchMines').value, 10) || 3;
+  let target = parseInt(document.getElementById('batchTarget').value, 10) || 1;
+  if (mines < 1) mines = 1; if (mines > 24) mines = 24;
+  const maxSafe = 25 - mines;
+  if (target > maxSafe) target = maxSafe;
+  if (target < 1) target = 1;
+
+  const p = survivalProb(mines, target);
+  const gainIfWin = calculateGain(mise, mines, target);
+
+  let totalWagered = 0, totalReturned = 0, wins = 0;
+  let history = [0], running = 0;
+  for (let g=0; g<nGames; g++){
+    totalWagered += mise;
+    if (Math.random() < p){
+      wins++;
+      totalReturned += gainIfWin;
+      running += (gainIfWin - mise);
+    } else {
+      running -= mise;
+    }
+    history.push(running);
+  }
+
+  const net = totalReturned - totalWagered;
+  const rtpEffectif = (totalReturned / totalWagered) * 100;
+  const winRate = (wins / nGames) * 100;
+
+  document.getElementById('batchStats').innerHTML = `
+    <div class="stat-card"><div class="v">${fmt(totalWagered)}</div><div class="l">Total misé</div></div>
+    <div class="stat-card"><div class="v">${fmt(totalReturned)}</div><div class="l">Total gagné</div></div>
+    <div class="stat-card"><div class="v" style="color:${net>=0?'#8fd98f':'#ff9d9d'}">${net>=0?'+':''}${fmt(net)}</div><div class="l">Net joueur</div></div>
+    <div class="stat-card"><div class="v">${rtpEffectif.toFixed(1)}%</div><div class="l">RTP effectif</div></div>
+    <div class="stat-card"><div class="v">${winRate.toFixed(1)}%</div><div class="l">Taux de victoire</div></div>
+  `;
+
+  const trace = { x: history.map((_,i)=>i), y: history, type:'scatter', mode:'lines',
+    line:{color:'#f5c542', width:1.5}, name:'Solde cumulé' };
+  const layout = {
+    title:`Solde cumulé du joueur sur ${nGames} parties`,
+    xaxis:{title:'Partie n°', gridcolor:'#4d6779', color:'#b9c6ce'},
+    yaxis:{title:'Solde (diamants)', gridcolor:'#4d6779', color:'#b9c6ce', zeroline:true, zerolinecolor:'#b9c6ce'},
+    plot_bgcolor:'#2c3f4b', paper_bgcolor:'#2c3f4b', font:{color:'#ffffff'}, margin:{l:60,r:20,t:40,b:40}
+  };
+  Plotly.react('batchChart', [trace], layout, {displaylogo:false});
+}
+
+// ================= Analyse (graphique + tableau) =================
+function updateChart(mise){
+  const minesToPlot = [1,3,5,10,15,20,24];
+  const traces = [];
+  for (let n of minesToPlot){
+    let x=[], y=[];
+    const maxCases = 25-n;
+    for (let c=1;c<=maxCases;c++){
+      const gain = calculateGain(mise, n, c);
+      if (gain !== null){ x.push(c); y.push(Math.round(gain)); }
+    }
+    traces.push({x,y,type:'scatter',mode:'lines+markers',name:n+' Mine(s)',
+      hovertemplate:'<b>Cases:</b> %{x}<br><b>Gain:</b> %{y}<extra></extra>'});
+  }
+  const layout = {
+    title:`Gains par cases découvertes — RTP ${(rtp*100).toFixed(1)}%`,
+    xaxis:{title:'Cases sûres découvertes', dtick:1, gridcolor:'#4d6779', color:'#b9c6ce'},
+    yaxis:{title:'Gain (diamants)', gridcolor:'#4d6779', color:'#b9c6ce', type:'log'},
+    hovermode:'x unified', plot_bgcolor:'#2c3f4b', paper_bgcolor:'#2c3f4b',
+    font:{color:'#ffffff'}, legend:{font:{color:'#ffffff'}}, margin:{l:60,r:20,t:40,b:40}
+  };
+  Plotly.react('chart', traces, layout, {displaylogo:false});
+}
+
+function riskLabel(n){
+  if (n<=5) return {t:'Faible', c:'risk-1'};
+  if (n<=15) return {t:'Moyen', c:'risk-2'};
+  return {t:'Élevé', c:'risk-3'};
+}
+
+function updateTable(mise){
+  const rows = [1,3,5,10,15,20,24];
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  rows.forEach(n => {
+    const maxCases = 25-n;
+    const mult = calculateMultiplier(n, maxCases);
+    const gain = mise*mult;
+    const r = riskLabel(n);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${n}</td><td>${maxCases}</td><td class="${r.c}">${r.t}</td>
+      <td class="gold">×${mult.toLocaleString('fr-FR',{maximumFractionDigits:2})}</td>
+      <td class="gold">${fmt(gain)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateAnalysis(){
+  const mise = parseFloat(document.getElementById('miseSlider').value);
+  document.getElementById('miseValue').innerText = fmt(mise);
+  updateChart(mise);
+  updateTable(mise);
+}
+
+// ================= Init =================
+updateMathBox();
+updateWalletDisplay();
+renderGrid();
+refreshSimStatus();
+updateBatchPreview();
+window.onload = updateAnalysis;
+</script>
+
+</body>
+</html>
